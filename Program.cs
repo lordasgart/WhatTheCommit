@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using System.Xml;
 using Flurl.Http;
@@ -9,18 +11,42 @@ namespace WhatTheCommit
     {
         static async Task Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            try
+            {
+                await GetTheCommitMessageFromWhatTheCommit();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
 
-            var result = await "http://whatthecommit.com".GetAsync().ReceiveString();
+        static async Task GetTheCommitMessageFromWhatTheCommit()
+        {
+            var htmlString = await "http://whatthecommit.com".GetAsync().ReceiveString();
 
-            Console.WriteLine(result);
+            Trace.WriteLine(htmlString);
 
             XmlDocument htmlResponse = new XmlDocument();
-            htmlResponse.LoadXml(result.Replace("<!doctype html>",string.Empty).Replace("<meta charset=\"UTF-8\">", string.Empty));
 
+            //Remove non-XML-compatible HTML elements
+            htmlResponse.LoadXml(htmlString.Replace("<!doctype html>",string.Empty).Replace("<meta charset=\"UTF-8\">", string.Empty));
+
+            //Get the commit message from the corresponding HTML element
             var commitMessage = htmlResponse.SelectSingleNode("/html/body/div/p").InnerText.Trim();
 
+            //Output commit message
             Console.WriteLine(commitMessage);
+
+            //Write commit message to history
+            var historyFileName = "history.txt";
+
+            if (!File.Exists(historyFileName))
+            {
+                File.Create(historyFileName);
+            }
+
+            File.AppendAllLines(historyFileName, new [] {commitMessage});
         }
     }
 }
